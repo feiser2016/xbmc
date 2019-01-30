@@ -188,6 +188,7 @@ void CPVRClient::Destroy(void)
 void CPVRClient::Stop()
 {
   m_bBlockAddonCalls = true;
+  m_bPriorityFetched = false;
 }
 
 void CPVRClient::Continue()
@@ -497,7 +498,7 @@ bool CPVRClient::GetAddonProperties(void)
                 : 821; // "One time (guide-based)
           }
           std::string descr(g_localizeStrings.Get(id));
-          strncpy(types_array[i].strDescription, descr.c_str(), descr.size());
+          strncpy(types_array[i].strDescription, descr.c_str(), sizeof(types_array[i].strDescription) - 1);
         }
         timerTypes.emplace_back(CPVRTimerTypePtr(new CPVRTimerType(types_array[i], m_iClientId)));
       }
