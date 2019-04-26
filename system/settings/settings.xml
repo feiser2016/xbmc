@@ -55,6 +55,7 @@
               <option label="351">0</option> <!-- ADJUST_REFRESHRATE_OFF -->
               <option label="36035">1</option> <!-- ADJUST_REFRESHRATE_ALWAYS -->
               <option label="36036">2</option> <!-- ADJUST_REFRESHRATE_ON_STARTSTOP -->
+              <option label="36050">3</option> <!-- ADJUST_REFRESHRATE_ON_START -->
             </options>
           </constraints>
           <control type="list" format="string" />
@@ -925,6 +926,7 @@
               <option label="208">1</option> <!-- SELECT_ACTION_PLAY_OR_RESUME -->
               <option label="13404">2</option> <!-- SELECT_ACTION_RESUME -->
               <option label="22081">3</option> <!-- SELECT_ACTION_INFO -->
+              <option label="13347">7</option> <!-- SELECT_ACTION_QUEUE -->
             </options>
           </constraints>
           <control type="list" format="string" />
@@ -1293,6 +1295,11 @@
           <control type="spinner" format="string">
             <formatlabel>14045</formatlabel>
           </control>
+        </setting>
+        <setting id="pvrmenu.closechannelosdonswitch" type="boolean" label="19303" help="36235">
+          <level>2</level>
+          <default>true</default>
+          <control type="toggle" />
         </setting>
       </group>
       <group id="2" label="14302">

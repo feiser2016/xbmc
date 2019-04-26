@@ -27,9 +27,6 @@
 #if defined(TARGET_DARWIN_OSX)
 #include "platform/darwin/osx/XBMCHelper.h"
 #endif // defined(TARGET_DARWIN_OSX)
-#if defined(TARGET_DARWIN)
-#include "platform/darwin/DarwinUtils.h"
-#endif
 #if defined(TARGET_DARWIN_IOS)
 #include "SettingAddon.h"
 #endif
@@ -201,6 +198,7 @@ const std::string CSettings::SETTING_PVRMANAGER_GROUPMANAGER = "pvrmanager.group
 const std::string CSettings::SETTING_PVRMANAGER_CHANNELSCAN = "pvrmanager.channelscan";
 const std::string CSettings::SETTING_PVRMANAGER_RESETDB = "pvrmanager.resetdb";
 const std::string CSettings::SETTING_PVRMENU_DISPLAYCHANNELINFO = "pvrmenu.displaychannelinfo";
+const std::string CSettings::SETTING_PVRMENU_CLOSECHANNELOSDONSWITCH = "pvrmenu.closechannelosdonswitch";
 const std::string CSettings::SETTING_PVRMENU_ICONPATH = "pvrmenu.iconpath";
 const std::string CSettings::SETTING_PVRMENU_SEARCHICONS = "pvrmenu.searchicons";
 const std::string CSettings::SETTING_EPG_PAST_DAYSTODISPLAY = "epg.pastdaystodisplay";
@@ -607,15 +605,12 @@ void CSettings::InitializeControls()
 void CSettings::InitializeVisibility()
 {
   // hide some settings if necessary
-#if defined(TARGET_DARWIN)
+#if defined(TARGET_DARWIN_IOS)
   std::shared_ptr<CSettingString> timezonecountry = std::static_pointer_cast<CSettingString>(GetSettingsManager()->GetSetting(CSettings::SETTING_LOCALE_TIMEZONECOUNTRY));
   std::shared_ptr<CSettingString> timezone = std::static_pointer_cast<CSettingString>(GetSettingsManager()->GetSetting(CSettings::SETTING_LOCALE_TIMEZONE));
 
-  if (CDarwinUtils::GetIOSVersion() >= 4.3)
-  {
-    timezonecountry->SetRequirementsMet(false);
-    timezone->SetRequirementsMet(false);
-  }
+  timezonecountry->SetRequirementsMet(false);
+  timezone->SetRequirementsMet(false);
 #endif
 }
 
