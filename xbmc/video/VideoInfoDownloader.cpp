@@ -7,11 +7,12 @@
  */
 
 #include "VideoInfoDownloader.h"
+
 #include "dialogs/GUIDialogProgress.h"
 #include "messaging/ApplicationMessenger.h"
 #include "messaging/helpers/DialogOKHelper.h"
-#include "utils/log.h"
 #include "utils/Variant.h"
+#include "utils/log.h"
 
 using namespace VIDEO;
 using namespace KODI::MESSAGING;
@@ -116,7 +117,7 @@ int CVideoInfoDownloader::FindMovie(const std::string &movieTitle, int movieYear
         CloseThread();
         return 0;
       }
-      Sleep(1);
+      CThread::Sleep(1);
     }
     // transfer to our movielist
     m_movieList.swap(movieList);
@@ -165,7 +166,7 @@ bool CVideoInfoDownloader::GetDetails(const CScraperUrl &url,
         CloseThread();
         return false;
       }
-      Sleep(1);
+      CThread::Sleep(1);
     }
     movieDetails = m_movieDetails;
     CloseThread();
@@ -200,7 +201,7 @@ bool CVideoInfoDownloader::GetEpisodeDetails(const CScraperUrl &url,
         CloseThread();
         return false;
       }
-      Sleep(1);
+      CThread::Sleep(1);
     }
     movieDetails = m_movieDetails;
     CloseThread();
@@ -235,7 +236,7 @@ bool CVideoInfoDownloader::GetEpisodeList(const CScraperUrl& url,
         CloseThread();
         return false;
       }
-      Sleep(1);
+      CThread::Sleep(1);
     }
     movieDetails = m_episode;
     CloseThread();

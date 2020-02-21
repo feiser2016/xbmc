@@ -6,24 +6,29 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include "utils/log.h"
-#include "video/VideoDatabase.h"
-#include "video/VideoInfoTag.h"
+#include "RecentlyAddedJob.h"
+
 #include "FileItem.h"
 #include "ServiceBroker.h"
-#include "RecentlyAddedJob.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindow.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/WindowIDs.h"
 #include "music/MusicDatabase.h"
-#include "music/tags/MusicInfoTag.h"
-#include "utils/StringUtils.h"
-#include "settings/AdvancedSettings.h"
-#include "settings/SettingsComponent.h"
 #include "music/MusicThumbLoader.h"
+#include "music/tags/MusicInfoTag.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
+#include "utils/StringUtils.h"
+#include "utils/log.h"
+#include "video/VideoDatabase.h"
+#include "video/VideoInfoTag.h"
 #include "video/VideoThumbLoader.h"
-#include "xbmc/settings/Settings.h"
+
+#if defined(TARGET_DARWIN_TVOS)
+#include "platform/darwin/tvos/TVOSTopShelf.h"
+#endif
 
 #define NUM_ITEMS 10
 
@@ -138,6 +143,11 @@ bool CRecentlyAddedJob::UpdateVideo()
     home->SetProperty("LatestEpisode." + value + ".SeasonThumb"   , "");
     home->SetProperty("LatestEpisode." + value + ".Fanart"        , "");
   }
+
+#if defined(TARGET_DARWIN_TVOS)
+  // send recently added Movies and TvShows to TopShelf
+  CTVOSTopShelf::GetInstance().SetTopShelfItems(items, TVShowItems);
+#endif
 
   i = 0;
   CFileItemList MusicVideoItems;

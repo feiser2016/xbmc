@@ -8,52 +8,45 @@
 
 //! @todo Need a uniform way of returning an error status
 
-#include "network/Network.h"
-
 #include "ModuleXbmc.h"
 
+#include "AddonUtils.h"
 #include "Application.h"
-#include "ServiceBroker.h"
-#include "messaging/ApplicationMessenger.h"
-#include "aojsonrpc.h"
-#ifndef TARGET_WINDOWS
-#include "XTimeUtils.h"
-#endif
-#include "guilib/LocalizeStrings.h"
+#include "FileItem.h"
 #include "GUIInfoManager.h"
-#include "guilib/GUIAudioManager.h"
-#include "guilib/GUIWindowManager.h"
+#include "LangInfo.h"
+#include "LanguageHook.h"
+#include "PlayListPlayer.h"
+#include "ServiceBroker.h"
+#include "Util.h"
+#include "aojsonrpc.h"
+#include "cores/AudioEngine/Interfaces/AE.h"
 #include "filesystem/File.h"
 #include "filesystem/SpecialProtocol.h"
-#include "utils/Crc32.h"
-#include "FileItem.h"
-#include "LangInfo.h"
-#include "PlayListPlayer.h"
+#include "guilib/GUIAudioManager.h"
+#include "guilib/GUIWindowManager.h"
+#include "guilib/LocalizeStrings.h"
+#include "guilib/TextureManager.h"
+#include "input/WindowTranslator.h"
+#include "messaging/ApplicationMessenger.h"
+#include "network/Network.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "guilib/TextureManager.h"
-#include "Util.h"
-#include "cores/AudioEngine/Interfaces/AE.h"
-#include "input/WindowTranslator.h"
 #include "storage/MediaManager.h"
+#include "threads/SystemClock.h"
+#include "utils/Crc32.h"
 #include "utils/FileExtensionProvider.h"
 #include "utils/LangCodeExpander.h"
+#include "utils/MemUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/SystemInfo.h"
-#include "AddonUtils.h"
-
-#include "LanguageHook.h"
-
-#include "threads/SystemClock.h"
-#include <vector>
+#include "utils/XTimeUtils.h"
 #include "utils/log.h"
+
+#include <vector>
 
 using namespace KODI;
 using namespace KODI::MESSAGING;
-
-#ifdef TARGET_POSIX
-#include "platform/linux/XMemUtils.h"
-#endif
 
 namespace XBMCAddon
 {
@@ -153,7 +146,7 @@ namespace XBMCAddon
           long nextSleep = endTime.MillisLeft();
           if (nextSleep > 100)
             nextSleep = 100; // only sleep for 100 millis
-          ::Sleep(nextSleep);
+          KODI::TIME::Sleep(nextSleep);
         }
         if (lh != NULL)
           lh->MakePendingCalls();
@@ -245,16 +238,15 @@ namespace XBMCAddon
     long getDVDState()
     {
       XBMC_TRACE;
-      return g_mediaManager.GetDriveStatus();
+      return CServiceBroker::GetMediaManager().GetDriveStatus();
     }
 
     long getFreeMem()
     {
       XBMC_TRACE;
-      MEMORYSTATUSEX stat;
-      stat.dwLength = sizeof(MEMORYSTATUSEX);
-      GlobalMemoryStatusEx(&stat);
-      return (long)(stat.ullAvailPhys  / ( 1024 * 1024 ));
+      KODI::MEMORY::MemoryStatus stat;
+      KODI::MEMORY::GetMemoryStatus(&stat);
+      return static_cast<long>(stat.availPhys  / ( 1024 * 1024 ));
     }
 
     // getCpuTemp() method

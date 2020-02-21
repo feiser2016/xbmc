@@ -6,17 +6,18 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include "cores/AudioEngine/AESinkFactory.h"
 #include "cores/AudioEngine/Sinks/AESinkDARWINOSX.h"
-#include "cores/AudioEngine/Utils/AERingBuffer.h"
+
+#include "ServiceBroker.h"
+#include "cores/AudioEngine/AESinkFactory.h"
 #include "cores/AudioEngine/Sinks/darwin/CoreAudioHelpers.h"
-#include "cores/AudioEngine/Sinks/osx/CoreAudioHardware.h"
 #include "cores/AudioEngine/Sinks/osx/AEDeviceEnumerationOSX.h"
-#include "utils/log.h"
+#include "cores/AudioEngine/Sinks/osx/CoreAudioHardware.h"
+#include "cores/AudioEngine/Utils/AERingBuffer.h"
+#include "utils/MemUtils.h"
 #include "utils/StringUtils.h"
 #include "utils/TimeUtils.h"
-#include "platform/linux/XMemUtils.h"
-#include "ServiceBroker.h"
+#include "utils/log.h"
 
 
 static void EnumerateDevices(CADeviceList &list)
@@ -128,16 +129,6 @@ OSStatus deviceChangedCB(AudioObjectID                       inObjectID,
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 CAESinkDARWINOSX::CAESinkDARWINOSX()
-: m_latentFrames(0),
-  m_outputBufferIndex(0),
-  m_outputBitstream(false),
-  m_planes(1),
-  m_frameSizePerPlane(0),
-  m_framesPerSecond(0),
-  m_buffer(NULL),
-  m_started(false),
-  m_render_tick(0),
-  m_render_delay(0.0)
 {
   // By default, kAudioHardwarePropertyRunLoop points at the process's main thread on SnowLeopard,
   // If your process lacks such a run loop, you can set kAudioHardwarePropertyRunLoop to NULL which

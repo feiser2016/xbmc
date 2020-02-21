@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "cores/VideoPlayer/VideoRenderers/LinuxRendererGLES.h"
 #include "DRMPRIMEEGL.h"
+#include "cores/VideoPlayer/VideoRenderers/LinuxRendererGLES.h"
 
 #include <array>
 #include <memory>
@@ -22,21 +22,21 @@ namespace EGL
 {
 class CEGLFence;
 }
-}
-}
+} // namespace UTILS
+} // namespace KODI
 
 class CRendererDRMPRIMEGLES : public CLinuxRendererGLES
 {
 public:
   CRendererDRMPRIMEGLES() = default;
-  ~CRendererDRMPRIMEGLES();
+  ~CRendererDRMPRIMEGLES() override;
 
   // Registration
   static CBaseRenderer* Create(CVideoBuffer* buffer);
   static void Register();
 
   // CLinuxRendererGLES overrides
-  bool Configure(const VideoPicture &picture, float fps, unsigned int orientation) override;
+  bool Configure(const VideoPicture& picture, float fps, unsigned int orientation) override;
   void ReleaseBuffer(int index) override;
   bool NeedBuffer(int index) override;
 

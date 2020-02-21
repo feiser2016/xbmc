@@ -6,20 +6,20 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include <errno.h>
-#include <drm_mode.h>
-#include <string.h>
-#include <unistd.h>
+#include "DRMAtomic.h"
 
+#include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "ServiceBroker.h"
 #include "settings/Settings.h"
 #include "utils/log.h"
 
-#include "DRMAtomic.h"
+#include <errno.h>
+#include <string.h>
 
 #include <drm_fourcc.h>
+#include <drm_mode.h>
+#include <unistd.h>
 
 using namespace KODI::WINDOWING::GBM;
 
@@ -119,6 +119,7 @@ void CDRMAtomic::FlipPage(struct gbm_bo *bo, bool rendered, bool videoLayer)
   {
     flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
     m_need_modeset = false;
+    CLog::Log(LOGDEBUG, "CDRMAtomic::%s - Execute modeset at next commit", __FUNCTION__);
   }
 
   DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer);

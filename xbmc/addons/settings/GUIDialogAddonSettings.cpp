@@ -7,14 +7,15 @@
  */
 
 #include "GUIDialogAddonSettings.h"
+
 #include "GUIPassword.h"
 #include "GUIUserMessages.h"
 #include "ServiceBroker.h"
 #include "addons/settings/AddonSettings.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
-#include "guilib/WindowIDs.h"
 #include "guilib/LocalizeStrings.h"
+#include "guilib/WindowIDs.h"
 #include "input/Key.h"
 #include "messaging/helpers/DialogOKHelper.h"
 #include "settings/Settings.h"
@@ -247,4 +248,12 @@ CSettingsManager* CGUIDialogAddonSettings::GetSettingsManager() const
     return nullptr;
 
   return m_addon->GetSettings()->GetSettingsManager();
+}
+
+void CGUIDialogAddonSettings::OnSettingAction(std::shared_ptr<const CSetting> setting)
+{
+  if (m_addon == nullptr || m_addon->GetSettings() == nullptr)
+    return;
+
+  m_addon->GetSettings()->OnSettingAction(setting);
 }

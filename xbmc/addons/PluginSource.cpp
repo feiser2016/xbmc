@@ -8,58 +8,49 @@
 
 #include "PluginSource.h"
 
-#include <utility>
-
 #include "AddonManager.h"
 #include "ServiceBroker.h"
-#include "utils/StringUtils.h"
 #include "URL.h"
+#include "utils/StringUtils.h"
+
+#include <utility>
 
 namespace ADDON
 {
 
-std::unique_ptr<CPluginSource> CPluginSource::FromExtension(CAddonInfo addonInfo, const cp_extension_t* ext)
+CPluginSource::CPluginSource(const AddonInfoPtr& addonInfo, TYPE addonType) : CAddon(addonInfo, addonType)
 {
-  std::string provides = CServiceBroker::GetAddonMgr().GetExtValue(ext->configuration, "provides");
-  if (!provides.empty())
-    addonInfo.AddExtraInfo("provides", provides);
-  CPluginSource* p = new CPluginSource(std::move(addonInfo), provides);
-
-  ELEMENTS elements;
-  if (CServiceBroker::GetAddonMgr().GetExtElements(ext->configuration, "medialibraryscanpath", elements))
+  std::string provides = addonInfo->Type(addonType)->GetValue("provides").asString();
+  if (provides.empty())
   {
-    std::string url = "plugin://" + p->ID() + '/';
-    for (const auto& elem : elements)
-    {
-      std::string content = CServiceBroker::GetAddonMgr().GetExtValue(elem, "@content");
-      if (content.empty())
-        continue;
-      std::string path;
-      if (elem->value)
-        path.assign(elem->value);
-      if (!path.empty() && path.front() == '/')
-        path.erase(0, 1);
-      if (path.compare(0, url.size(), url))
-        path.insert(0, url);
-      p->m_mediaLibraryScanPaths[content].push_back(CURL(path).GetFileName());
-    }
+    /*
+     * If "provides" was empty, check about them in addon extra info. This become
+     * needed for addons from repo content where the addon is stored inside a
+     * database and the related type classes are not created on addon info.
+     * The database add then "provides" to there.
+     */
+    const auto& i = addonInfo->ExtraInfo().find("provides");
+    if (i != addonInfo->ExtraInfo().end())
+      provides = i->second;
+    else
+      provides = "executable"; // if nothing fall back to "executable"
   }
 
-  return std::unique_ptr<CPluginSource>(p);
-}
+  for (auto values : addonInfo->Type(addonType)->GetValues())
+  {
+    if (values.first != "medialibraryscanpath")
+      continue;
 
-CPluginSource::CPluginSource(CAddonInfo addonInfo) : CAddon(std::move(addonInfo))
-{
-  std::string provides;
-  InfoMap::const_iterator i = m_addonInfo.ExtraInfo().find("provides");
-  if (i != m_addonInfo.ExtraInfo().end())
-    provides = i->second;
-  SetProvides(provides);
-}
+    std::string url = "plugin://" + ID() + '/';
+    std::string content = values.second.GetValue("medialibraryscanpath@content").asString();
+    std::string path = values.second.GetValue("medialibraryscanpath").asString();
+    if (!path.empty() && path.front() == '/')
+      path.erase(0, 1);
+    if (path.compare(0, url.size(), url))
+      path.insert(0, url);
+    m_mediaLibraryScanPaths[content].push_back(CURL(path).GetFileName());
+  }
 
-CPluginSource::CPluginSource(CAddonInfo addonInfo, const std::string& provides)
-  : CAddon(std::move(addonInfo))
-{
   SetProvides(provides);
 }
 
@@ -95,29 +86,14 @@ CPluginSource::Content CPluginSource::Translate(const std::string &content)
     return CPluginSource::UNKNOWN;
 }
 
-TYPE CPluginSource::FullType() const
-{
-  if (Provides(VIDEO))
-    return ADDON_VIDEO;
-  if (Provides(AUDIO))
-    return ADDON_AUDIO;
-  if (Provides(IMAGE))
-    return ADDON_IMAGE;
-  if (Provides(GAME))
-    return ADDON_GAME;
-  if (Provides(EXECUTABLE))
-    return ADDON_EXECUTABLE;
-
-  return CAddon::FullType();
-}
-
-bool CPluginSource::IsType(TYPE type) const
+bool CPluginSource::HasType(TYPE type) const
 {
   return ((type == ADDON_VIDEO && Provides(VIDEO))
        || (type == ADDON_AUDIO && Provides(AUDIO))
        || (type == ADDON_IMAGE && Provides(IMAGE))
        || (type == ADDON_GAME && Provides(GAME))
-       || (type == ADDON_EXECUTABLE && Provides(EXECUTABLE)));
+       || (type == ADDON_EXECUTABLE && Provides(EXECUTABLE))
+       || (type == CAddon::Type()));
 }
 
 } /*namespace ADDON*/

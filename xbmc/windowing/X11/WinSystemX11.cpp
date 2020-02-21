@@ -7,30 +7,33 @@
  */
 
 #include "WinSystemX11.h"
+
+#include "CompileInfo.h"
+#include "OSScreenSaverX11.h"
 #include "ServiceBroker.h"
+#include "WinEventsX11.h"
+#include "XRandR.h"
+#include "guilib/DispResource.h"
+#include "guilib/Texture.h"
+#include "input/InputManager.h"
+#include "messaging/ApplicationMessenger.h"
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
-#include "windowing/GraphicContext.h"
-#include "guilib/Texture.h"
-#include "guilib/DispResource.h"
-#include "utils/log.h"
-#include "XRandR.h"
-#include <vector>
-#include <string>
 #include "threads/SingleLock.h"
-#include "utils/TimeUtils.h"
 #include "utils/StringUtils.h"
-#include "CompileInfo.h"
-#include "messaging/ApplicationMessenger.h"
+#include "utils/TimeUtils.h"
+#include "utils/log.h"
+#include "windowing/GraphicContext.h"
+
+#include "platform/linux/powermanagement/LinuxPowerSyscall.h"
+
+#include <string>
+#include <vector>
+
 #include <X11/Xatom.h>
 #include <X11/extensions/Xrandr.h>
-
-#include "WinEventsX11.h"
-#include "input/InputManager.h"
-#include "OSScreenSaverX11.h"
-#include "platform/linux/powermanagement/LinuxPowerSyscall.h"
 
 using namespace KODI::MESSAGING;
 using namespace KODI::WINDOWING;
@@ -362,7 +365,7 @@ void CWinSystemX11::UpdateResolutions()
   XOutput *out = g_xrandr.GetOutput(m_userOutput);
   if (out != NULL)
   {
-    CLog::Log(LOGINFO, "Output '%s' has %" PRIdS" modes", out->name.c_str(), out->modes.size());
+    CLog::Log(LOGINFO, "Output '{}' has {} modes", out->name, out->modes.size());
 
     for (auto mode : out->modes)
     {

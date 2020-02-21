@@ -39,6 +39,9 @@
 #if defined(TARGET_ANDROID)
 #include "platform/android/filesystem/AndroidAppFile.h"
 #endif
+#if defined(TARGET_DARWIN_TVOS)
+#include "platform/darwin/tvos/filesystem/TVOSFile.h"
+#endif // TARGET_DARWIN_TVOS
 #ifdef HAS_UPNP
 #include "UPnPFile.h"
 #endif
@@ -48,6 +51,7 @@
 #include "PipeFile.h"
 #include "MusicDatabaseFile.h"
 #include "VideoDatabaseFile.h"
+#include "PluginFile.h"
 #include "SpecialProtocolFile.h"
 #include "MultiPathFile.h"
 #include "UDFFile.h"
@@ -78,13 +82,13 @@ IFile* CFileFactory::CreateLoader(const CURL& url)
   if (!CWakeOnAccess::GetInstance().WakeUpHost(url))
     return NULL;
 
-  std::string strProtocol = url.GetProtocol();
-  if (!strProtocol.empty() && CServiceBroker::IsBinaryAddonCacheUp())
+  if (!url.GetProtocol().empty() && CServiceBroker::IsBinaryAddonCacheUp())
   {
-    StringUtils::ToLower(strProtocol);
     for (const auto& vfsAddon : CServiceBroker::GetVFSAddonCache().GetAddonInstances())
     {
-      if (vfsAddon->HasFiles() && vfsAddon->GetProtocols().find(strProtocol) != std::string::npos)
+      auto prots = StringUtils::Split(vfsAddon->GetProtocols(), "|");
+
+      if (vfsAddon->HasFiles() && std::find(prots.begin(), prots.end(), url.GetProtocol()) != prots.end())
         return new CVFSEntryIFileWrapper(vfsAddon);
     }
   }
@@ -96,13 +100,21 @@ IFile* CFileFactory::CreateLoader(const CURL& url)
   else if (url.IsProtocol("xbt")) return new CXbtFile();
   else if (url.IsProtocol("musicdb")) return new CMusicDatabaseFile();
   else if (url.IsProtocol("videodb")) return new CVideoDatabaseFile();
+  else if (url.IsProtocol("plugin")) return new CPluginFile();
   else if (url.IsProtocol("library")) return nullptr;
   else if (url.IsProtocol("pvr")) return nullptr;
   else if (url.IsProtocol("special")) return new CSpecialProtocolFile();
   else if (url.IsProtocol("multipath")) return new CMultiPathFile();
   else if (url.IsProtocol("image")) return new CImageFile();
 #ifdef TARGET_POSIX
-  else if (url.IsProtocol("file") || url.GetProtocol().empty()) return new CPosixFile();
+  else if (url.IsProtocol("file") || url.GetProtocol().empty())
+  {
+#if defined(TARGET_DARWIN_TVOS)
+    if (CTVOSFile::WantsFile(url))
+      return new CTVOSFile();
+#endif
+    return new CPosixFile();
+  }
 #elif defined(TARGET_WINDOWS)
   else if (url.IsProtocol("file") || url.GetProtocol().empty())
   {
@@ -137,7 +149,7 @@ IFile* CFileFactory::CreateLoader(const CURL& url)
   ||  url.IsProtocol("http")
   ||  url.IsProtocol("https")) return new CCurlFile();
   else if (url.IsProtocol("dav") || url.IsProtocol("davs")) return new CDAVFile();
-  else if (url.IsProtocol("shout")) return new CShoutcastFile();
+  else if (url.IsProtocol("shout") || url.IsProtocol("shouts")) return new CShoutcastFile();
 #ifdef HAS_FILESYSTEM_SMB
 #ifdef TARGET_WINDOWS
   else if (url.IsProtocol("smb")) return new CWin32SMBFile();

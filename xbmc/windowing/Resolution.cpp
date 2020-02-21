@@ -7,15 +7,16 @@
  */
 
 #include "Resolution.h"
+
 #include "GraphicContext.h"
-#include "utils/Variant.h"
-#include "utils/log.h"
-#include "utils/MathUtils.h"
+#include "ServiceBroker.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/DisplaySettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "ServiceBroker.h"
+#include "utils/MathUtils.h"
+#include "utils/Variant.h"
+#include "utils/log.h"
 
 #include <cstdlib>
 
@@ -97,7 +98,7 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
         if ((info.fRefreshRate > 30) || (MathUtils::FloatEquals(info.fRefreshRate, 24.0f, 0.1f)))
         {
           resString = CDisplaySettings::GetInstance().GetStringFromRes(c);
-          indexList.push_back(resString);
+          indexList.emplace_back(resString);
         }
       }
     }
@@ -163,13 +164,12 @@ void CResolutionUtils::FindResolutionFromWhitelist(float fps, int width, int hei
     }
   }
 
-  CLog::Log(LOGDEBUG, "No double refresh rate whitelisted resolution matched, trying current resolution");
+  CLog::Log(LOGDEBUG, "No 3:2 pullback refresh rate whitelisted resolution matched, trying current resolution");
 
   if (width <= curr.iScreenWidth
     && height <= curr.iScreenHeight
     && (MathUtils::FloatEquals(curr.fRefreshRate, fps, 0.01f)
-      || MathUtils::FloatEquals(curr.fRefreshRate, fps * 2, 0.01f)
-      || MathUtils::FloatEquals(curr.fRefreshRate, fps * 2.5f, 0.01f)))
+      || MathUtils::FloatEquals(curr.fRefreshRate, fps * 2, 0.01f)))
   {
     CLog::Log(LOGDEBUG, "Matched current Resolution %s (%d)", curr.strMode.c_str(), resolution);
     return;

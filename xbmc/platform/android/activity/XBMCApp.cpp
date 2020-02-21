@@ -21,6 +21,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 
+#include <androidjni/ActivityManager.h>
 #include <androidjni/ApplicationInfo.h>
 #include <androidjni/BitmapFactory.h>
 #include <androidjni/BroadcastReceiver.h>
@@ -63,32 +64,34 @@
 #include "windowing/GraphicContext.h"
 #include "guilib/GUIWindowManager.h"
 // Audio Engine includes for Factory and interfaces
-#include "cores/AudioEngine/Interfaces/AE.h"
-#include "cores/AudioEngine/AESinkFactory.h"
-#include "cores/AudioEngine/Sinks/AESinkAUDIOTRACK.h"
-
-#include "ServiceBroker.h"
 #include "GUIInfoManager.h"
-#include "guilib/guiinfo/GUIInfoLabels.h"
-#include "guilib/GUIComponent.h"
-#include "platform/android/activity/IInputDeviceCallbacks.h"
-#include "platform/android/activity/IInputDeviceEventHandler.h"
-#include "input/mouse/MouseStat.h"
-#include "input/Key.h"
-#include "utils/log.h"
-#include "utils/TimeUtils.h"
-#include "platform/android/network/NetworkAndroid.h"
+#include "ServiceBroker.h"
+#include "TextureCache.h"
+#include "cores/AudioEngine/AESinkFactory.h"
+#include "cores/AudioEngine/Interfaces/AE.h"
+#include "cores/AudioEngine/Sinks/AESinkAUDIOTRACK.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderManager.h"
 #include "filesystem/SpecialProtocol.h"
-#include "TextureCache.h"
-#include "utils/StringUtils.h"
 #include "filesystem/VideoDatabaseFile.h"
+#include "guilib/GUIComponent.h"
+#include "guilib/guiinfo/GUIInfoLabels.h"
+#include "input/Key.h"
+#include "input/mouse/MouseStat.h"
+#include "platform/xbmc.h"
+#include "powermanagement/PowerManager.h"
+#include "utils/StringUtils.h"
+#include "utils/TimeUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
+#include "utils/log.h"
+#include "windowing/WinEvents.h"
 #include "windowing/android/VideoSyncAndroid.h"
 #include "windowing/android/WinSystemAndroid.h"
-#include "windowing/WinEvents.h"
-#include "platform/xbmc.h"
+
+#include "platform/android/activity/IInputDeviceCallbacks.h"
+#include "platform/android/activity/IInputDeviceEventHandler.h"
+#include "platform/android/network/NetworkAndroid.h"
+#include "platform/android/powermanagement/AndroidPowerSyscall.h"
 
 #define GIGABYTES       1073741824
 
@@ -244,6 +247,10 @@ void CXBMCApp::onResume()
   // Re-request Visible Behind
   if ((m_playback_state & PLAYBACK_STATE_PLAYING) && (m_playback_state & PLAYBACK_STATE_VIDEO))
     RequestVisibleBehind(true);
+
+  if (g_application.IsInitialized())
+    dynamic_cast<CAndroidPowerSyscall*>(CServiceBroker::GetPowerManager().GetPowerSyscall())
+        ->SetOnResume();
 }
 
 void CXBMCApp::onPause()
@@ -264,6 +271,9 @@ void CXBMCApp::onPause()
 
   EnableWakeLock(false);
   m_hasReqVisible = false;
+
+  dynamic_cast<CAndroidPowerSyscall*>(CServiceBroker::GetPowerManager().GetPowerSyscall())
+      ->SetOnPause();
 }
 
 void CXBMCApp::onStop()
@@ -359,6 +369,7 @@ void CXBMCApp::Initialize()
 {
   CServiceBroker::GetAnnouncementManager()->AddAnnouncer(CXBMCApp::get());
   runNativeOnUiThread(RegisterDisplayListener, nullptr);
+  m_activityManager.reset(new CJNIActivityManager(getSystemService(CJNIContext::ACTIVITY_SERVICE)));
 }
 
 void CXBMCApp::Deinitialize()
@@ -577,7 +588,7 @@ void CXBMCApp::SetRefreshRate(float rate)
   {
     m_displayChangeEvent.WaitMSec(5000);
     if (m_hdmiSource && g_application.GetAppPlayer().IsPlaying())
-      dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem())->SetHDMIState(false);
+      dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem())->InitiateModeChange();
   }
 }
 
@@ -605,7 +616,7 @@ void CXBMCApp::SetDisplayMode(int mode, float rate)
   {
     m_displayChangeEvent.WaitMSec(5000);
     if (m_hdmiSource && g_application.GetAppPlayer().IsPlaying())
-      dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem())->SetHDMIState(false);
+      dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem())->InitiateModeChange();
   }
 }
 
@@ -1020,7 +1031,7 @@ void CXBMCApp::onReceive(CJNIIntent intent)
     {
       CWinSystemBase* winSystem = CServiceBroker::GetWinSystem();
       if (winSystem && dynamic_cast<CWinSystemAndroid*>(winSystem))
-        dynamic_cast<CWinSystemAndroid*>(winSystem)->SetHDMIState(m_hdmiPlugged);
+        dynamic_cast<CWinSystemAndroid*>(winSystem)->SetHdmiState(m_hdmiPlugged);
     }
   }
   else if (action == "android.intent.action.SCREEN_OFF")
@@ -1099,7 +1110,7 @@ void CXBMCApp::onNewIntent(CJNIIntent intent)
       {
         std::vector<std::string> params;
         params.push_back(targeturl.Get());
-        params.push_back("return");
+        params.emplace_back("return");
         CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTIVATE_WINDOW, WINDOW_VIDEO_NAV, 0, nullptr, "", params);
       }
       else if (targeturl.IsProtocol("musicdb")
@@ -1107,7 +1118,7 @@ void CXBMCApp::onNewIntent(CJNIIntent intent)
       {
         std::vector<std::string> params;
         params.push_back(targeturl.Get());
-        params.push_back("return");
+        params.emplace_back("return");
         CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTIVATE_WINDOW, WINDOW_MUSIC_NAV, 0, nullptr, "", params);
       }
     }
@@ -1182,7 +1193,7 @@ int CXBMCApp::WaitForActivityResult(const CJNIIntent &intent, int requestCode, C
 void CXBMCApp::onVolumeChanged(int volume)
 {
   // System volume was used; Reset Kodi volume to 100% if it isn't, already
-  if (g_application.GetVolume(false) != 1.0)
+  if (g_application.GetVolumeRatio() != 1.0)
     CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTION, WINDOW_INVALID, -1, static_cast<void*>(
                                                  new CAction(ACTION_VOLUME_SET, static_cast<float>(CXBMCApp::GetMaxSystemVolume()))));
 }
@@ -1241,6 +1252,27 @@ bool CXBMCApp::WaitVSync(unsigned int milliSeconds)
   return m_vsyncEvent.WaitMSec(milliSeconds);
 }
 
+bool CXBMCApp::GetMemoryInfo(long& availMem, long& totalMem)
+{
+  if (m_activityManager)
+  {
+    CJNIActivityManager::MemoryInfo info;
+    m_activityManager->getMemoryInfo(info);
+    if (xbmc_jnienv()->ExceptionCheck())
+    {
+      xbmc_jnienv()->ExceptionClear();
+      return false;
+    }
+
+    availMem = info.availMem();
+    totalMem = info.totalMem();
+
+    return true;
+  }
+
+  return false;
+}
+
 void CXBMCApp::SetupEnv()
 {
   setenv("KODI_ANDROID_SYSTEM_LIBS", CJNISystem::getProperty("java.library.path").c_str(), 0);
@@ -1282,7 +1314,7 @@ void CXBMCApp::SetupEnv()
     setenv("HOME", getenv("KODI_TEMP"), 0);
 
   std::string apkPath = getenv("KODI_ANDROID_APK");
-  apkPath += "/assets/python2.7";
+  apkPath += "/assets/python3.7";
   setenv("PYTHONHOME", apkPath.c_str(), 1);
   setenv("PYTHONPATH", "", 1);
   setenv("PYTHONOPTIMIZE","", 1);
@@ -1395,6 +1427,12 @@ void CXBMCApp::onDisplayAdded(int displayId)
 void CXBMCApp::onDisplayChanged(int displayId)
 {
   CLog::Log(LOGDEBUG, "CXBMCApp::%s: id: %d", __FUNCTION__, displayId);
+
+  // Update display modes
+  CWinSystemAndroid* winSystemAndroid = dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem());
+  if (winSystemAndroid)
+    winSystemAndroid->UpdateDisplayModes();
+
   m_displayChangeEvent.Set();
   android_printf("%s: ", __PRETTY_FUNCTION__);
 }

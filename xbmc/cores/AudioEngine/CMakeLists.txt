@@ -118,11 +118,16 @@ if(CORE_SYSTEM_NAME STREQUAL osx)
                       Sinks/osx/CoreAudioStream.h)
 endif()
 
-if(CORE_SYSTEM_NAME STREQUAL ios)
-  list(APPEND SOURCES Sinks/AESinkDARWINIOS.mm
-                      Sinks/darwin/CoreAudioHelpers.cpp)
-  list(APPEND HEADERS Sinks/AESinkDARWINIOS.h
-                      Sinks/darwin/CoreAudioHelpers.h)
+if(CORE_SYSTEM_NAME STREQUAL darwin_embedded)
+  list(APPEND SOURCES Sinks/darwin/CoreAudioHelpers.cpp)
+  list(APPEND HEADERS Sinks/darwin/CoreAudioHelpers.h)
+  if(CORE_PLATFORM_NAME_LC STREQUAL ios)
+    list(APPEND SOURCES Sinks/AESinkDARWINIOS.mm)
+    list(APPEND HEADERS Sinks/AESinkDARWINIOS.h)
+  elseif(CORE_PLATFORM_NAME_LC STREQUAL tvos)
+    list(APPEND SOURCES Sinks/AESinkDARWINTVOS.mm)
+    list(APPEND HEADERS Sinks/AESinkDARWINTVOS.h)
+  endif()
 endif()
 
 if(CORE_SYSTEM_NAME STREQUAL android)

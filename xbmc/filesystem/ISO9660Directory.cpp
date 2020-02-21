@@ -7,15 +7,15 @@
  */
 
 #include "ISO9660Directory.h"
-#include "iso9660.h"
-#include "Util.h"
-#include "utils/URIUtils.h"
-#include "utils/StringUtils.h"
-#include "URL.h"
+
 #include "FileItem.h"
-#ifdef TARGET_POSIX
-#include "platform/linux/XTimeUtils.h"
-#endif
+#include "URL.h"
+#include "Util.h"
+#include "iso9660.h"
+#include "utils/StringUtils.h"
+#include "utils/URIUtils.h"
+#include "utils/XTimeUtils.h"
+
 #ifdef TARGET_WINDOWS
 #include "platform/win32/CharsetConverter.h"
 #endif
@@ -35,7 +35,7 @@ bool CISO9660Directory::GetDirectory(const CURL& url, CFileItemList &items)
   if (!m_isoReader.IsScanned())
     m_isoReader.Scan();
 
-  WIN32_FIND_DATA wfd;
+  Win32FindData wfd;
   HANDLE hFind;
 
   memset(&wfd, 0, sizeof(wfd));
@@ -61,15 +61,11 @@ bool CISO9660Directory::GetDirectory(const CURL& url, CFileItemList &items)
 
   do
   {
-    if (wfd.cFileName[0] != 0)
+    if (wfd.fileName[0] != 0)
     {
-      if ( (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+      if ((wfd.fileAttributes & KODI_FILE_ATTRIBUTE_DIRECTORY))
       {
-#ifdef TARGET_WINDOWS
-        auto strDir = KODI::PLATFORM::WINDOWS::FromW(wfd.cFileName);
-#else
-        std::string strDir = wfd.cFileName;
-#endif
+        std::string strDir = wfd.fileName;
         if (strDir != "." && strDir != "..")
         {
           CFileItemPtr pItem(new CFileItem(strDir));
@@ -77,25 +73,21 @@ bool CISO9660Directory::GetDirectory(const CURL& url, CFileItemList &items)
           URIUtils::AddSlashAtEnd(path);
           pItem->SetPath(path);
           pItem->m_bIsFolder = true;
-          FILETIME localTime;
-          FileTimeToLocalFileTime(&wfd.ftLastWriteTime, &localTime);
+          KODI::TIME::FileTime localTime;
+          KODI::TIME::FileTimeToLocalFileTime(&wfd.lastWriteTime, &localTime);
           pItem->m_dateTime=localTime;
           items.Add(pItem);
         }
       }
       else
       {
-#ifdef TARGET_WINDOWS
-        auto strDir = KODI::PLATFORM::WINDOWS::FromW(wfd.cFileName);
-#else
-        std::string strDir = wfd.cFileName;
-#endif
+        std::string strDir = wfd.fileName;
         CFileItemPtr pItem(new CFileItem(strDir));
         pItem->SetPath(strRoot + strDir);
         pItem->m_bIsFolder = false;
-        pItem->m_dwSize = CUtil::ToInt64(wfd.nFileSizeHigh, wfd.nFileSizeLow);
-        FILETIME localTime;
-        FileTimeToLocalFileTime(&wfd.ftLastWriteTime, &localTime);
+        pItem->m_dwSize = CUtil::ToInt64(wfd.fileSizeHigh, wfd.fileSizeLow);
+        KODI::TIME::FileTime localTime;
+        KODI::TIME::FileTimeToLocalFileTime(&wfd.lastWriteTime, &localTime);
         pItem->m_dateTime=localTime;
         items.Add(pItem);
       }

@@ -9,9 +9,10 @@
 
 #pragma once
 
-#include <vector>
+#include "XBDateTime.h"
+
 #include <string>
-#include "PlatformDefs.h" // for win32 types
+#include <vector>
 
 #ifdef TARGET_WINDOWS
 // Ideally we should just be including iso9660.h, but it's not win32-ified at this point,
@@ -42,9 +43,9 @@ struct iso9660_VolumeDescriptor
   DWORD dwPathTableLengthLE;     //132-135
   DWORD dwPathTableLengthBE;     //136-139
   DWORD wFirstPathTableStartSectorLE; //140-143
-  DWORD wSecondPathTableStartSectorLE; //144-147
+  DWORD secondPathTableStartSectorLE; //144-147
   DWORD wFirstPathTableStartSectorBE; //148-151
-  DWORD wSecondPathTableStartSectorBE; //152-155
+  DWORD secondPathTableStartSectorBE; //152-155
   unsigned char szRootDir[34];
   unsigned char szVolumeSetIdentifier[128];
   unsigned char szPublisherIdentifier[128];
@@ -131,7 +132,7 @@ struct iso_dirtree
   char type;  // bit 0 = no entry, bit 1 = file, bit 2 = dir
   DWORD Location; // number of the first sector of file data or directory
   DWORD Length;      // number of bytes of file data or length of directory
-  FILETIME filetime; // date time of the directory/file
+  KODI::TIME::FileTime filetime; // date time of the directory/file
 
   struct iso_dirtree *dirpointer; // if type is a dir, this will point to the list in that dir
   struct iso_dirtree *next;  // pointer to next file/dir in this directory
@@ -144,6 +145,22 @@ struct iso_directories
   struct iso_directories* next;
 };
 #define MAX_ISO_FILES 30
+
+struct Win32FindData
+{
+  unsigned int fileAttributes;
+  KODI::TIME::FileTime creationTime;
+  KODI::TIME::FileTime lastAccessTime;
+  KODI::TIME::FileTime lastWriteTime;
+  unsigned int fileSizeHigh;
+  unsigned int fileSizeLow;
+  unsigned int reserved0;
+  unsigned int reserved1;
+  char fileName[260];
+  char alternateFileName[14];
+};
+
+constexpr unsigned int KODI_FILE_ATTRIBUTE_DIRECTORY{0x10};
 
 class iso9660
 {
@@ -165,8 +182,8 @@ public:
   iso9660( );
   virtual ~iso9660( );
 
-  HANDLE FindFirstFile9660(const char *szLocalFolder, WIN32_FIND_DATA *wfdFile );
-  int FindNextFile( HANDLE szLocalFolder, WIN32_FIND_DATA *wfdFile );
+  HANDLE FindFirstFile9660(const char* szLocalFolder, Win32FindData* wfdFile);
+  int FindNextFile(HANDLE szLocalFolder, Win32FindData* wfdFile);
   bool FindClose( HANDLE szLocalFolder );
   DWORD SetFilePointer(HANDLE hFile, long lDistanceToMove, long* lpDistanceToMoveHigh, DWORD dwMoveMethod );
   int64_t GetFileSize(HANDLE hFile);
@@ -180,7 +197,7 @@ public:
   bool IsScanned();
 
 protected:
-  void IsoDateTimeToFileTime(iso9660_Datetime* isoDateTime, FILETIME* filetime);
+  void IsoDateTimeToFileTime(iso9660_Datetime* isoDateTime, KODI::TIME::FileTime* filetime);
   struct iso_dirtree* ReadRecursiveDirFromSector( DWORD sector, const char * );
   struct iso_dirtree* FindFolder(const char *Folder );
   std::string GetThinText(unsigned char* strTxt, int iLen );

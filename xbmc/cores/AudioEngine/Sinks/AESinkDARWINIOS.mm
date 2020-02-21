@@ -7,18 +7,19 @@
  */
 
 #include "cores/AudioEngine/Sinks/AESinkDARWINIOS.h"
-#include "cores/AudioEngine/AESinkFactory.h"
-#include "cores/AudioEngine/Utils/AEUtil.h"
-#include "cores/AudioEngine/Utils/AERingBuffer.h"
-#include "cores/AudioEngine/Sinks/darwin/CoreAudioHelpers.h"
+
 #include "ServiceBroker.h"
-#include "platform/darwin/DarwinUtils.h"
-#include "utils/log.h"
-#include "utils/StringUtils.h"
+#include "cores/AudioEngine/AESinkFactory.h"
+#include "cores/AudioEngine/Sinks/darwin/CoreAudioHelpers.h"
+#include "cores/AudioEngine/Utils/AERingBuffer.h"
+#include "cores/AudioEngine/Utils/AEUtil.h"
 #include "threads/Condition.h"
+#include "utils/StringUtils.h"
+#include "utils/log.h"
 #include "windowing/WinSystem.h"
 
 #include <sstream>
+
 #include <AudioToolbox/AudioToolbox.h>
 
 #define CA_MAX_CHANNELS 8
@@ -74,7 +75,7 @@ static float SineWaveGeneratorNextSampleFloat(SineWaveGenerator *ctx)
 class CAAudioUnitSink
 {
   public:
-    CAAudioUnitSink();
+    CAAudioUnitSink() = default;
    ~CAAudioUnitSink();
 
     bool         open(AudioStreamBasicDescription outputFormat);
@@ -109,10 +110,10 @@ class CAAudioUnitSink
                   AudioBufferList *ioData);
 
     bool                m_setup;
-    bool                m_activated;
+    bool m_activated = false;
     AudioUnit           m_audioUnit;
     AudioStreamBasicDescription m_outputFormat;
-    AERingBuffer       *m_buffer;
+    AERingBuffer* m_buffer = nullptr;
 
     bool                m_mute;
     Float32             m_outputVolume;
@@ -122,23 +123,13 @@ class CAAudioUnitSink
     unsigned int        m_sampleRate;
     unsigned int        m_frameSize;
 
-    bool                m_playing;
-    volatile bool       m_started;
+    bool m_playing = false;
+    volatile bool m_started = false;
 
     CAESpinSection      m_render_section;
-    volatile int64_t    m_render_timestamp;
-    volatile uint32_t   m_render_frames;
+    volatile int64_t m_render_timestamp = 0;
+    volatile uint32_t m_render_frames = 0;
 };
-
-CAAudioUnitSink::CAAudioUnitSink()
-: m_activated(false)
-, m_buffer(NULL)
-, m_playing(false)
-, m_started(false)
-, m_render_timestamp(0)
-, m_render_frames(0)
-{
-}
 
 CAAudioUnitSink::~CAAudioUnitSink()
 {
@@ -534,7 +525,7 @@ static void EnumerateDevices(AEDeviceInfoList &list)
   device.m_displayNameExtra = "";
   // TODO screen changing on ios needs to call
   // devices changed once this is available in active
-  if (0)
+  if (false)
   {
     device.m_deviceType = AE_DEVTYPE_IEC958; //allow passthrough for tvout
     device.m_streamTypes.push_back(CAEStreamInfo::STREAM_TYPE_AC3);
@@ -579,10 +570,6 @@ AEDeviceInfoList CAESinkDARWINIOS::m_devices;
 
 CAESinkDARWINIOS::CAESinkDARWINIOS()
 :   m_audioSink(NULL)
-{
-}
-
-CAESinkDARWINIOS::~CAESinkDARWINIOS()
 {
 }
 

@@ -8,16 +8,18 @@
 
 #pragma once
 
-#include <drm_fourcc.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include <gbm.h>
+#include "GBMUtils.h"
+#include "windowing/Resolution.h"
+
+#include "platform/posix/utils/FileHandle.h"
+
 #include <map>
 #include <vector>
 
-#include "windowing/Resolution.h"
-#include "GBMUtils.h"
-#include "platform/posix/utils/FileHandle.h"
+#include <drm_fourcc.h>
+#include <gbm.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 namespace KODI
 {
@@ -109,6 +111,7 @@ public:
   std::vector<uint64_t> *GetVideoPlaneModifiersForFormat(uint32_t format) { return &m_video_plane->modifiers_map[format]; }
   std::vector<uint64_t> *GetGuiPlaneModifiersForFormat(uint32_t format) { return &m_gui_plane->modifiers_map[format]; }
   struct crtc* GetCrtc() const { return m_crtc; }
+  struct connector* GetConnector() const { return m_connector; }
 
   virtual RESOLUTION_INFO GetCurrentMode();
   virtual std::vector<RESOLUTION_INFO> GetModes();

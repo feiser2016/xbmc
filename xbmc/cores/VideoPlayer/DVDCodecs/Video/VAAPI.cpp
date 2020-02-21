@@ -7,25 +7,27 @@
  */
 
 #include "VAAPI.h"
-#include "ServiceBroker.h"
+
 #include "DVDVideoCodec.h"
+#include "ServiceBroker.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDCodecUtils.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h"
 #include "cores/VideoPlayer/Interface/Addon/TimingConstants.h"
 #include "cores/VideoPlayer/Process/ProcessInfo.h"
-#include "utils/log.h"
-#include "utils/StringUtils.h"
-#include "threads/SingleLock.h"
+#include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "settings/lib/Setting.h"
+#include "threads/SingleLock.h"
+#include "utils/MemUtils.h"
+#include "utils/StringUtils.h"
+#include "utils/XTimeUtils.h"
+#include "utils/log.h"
 #include "windowing/GraphicContext.h"
-#include "settings/AdvancedSettings.h"
+
+#include <drm_fourcc.h>
 #include <va/va_drm.h>
 #include <va/va_drmcommon.h>
-#include <drm_fourcc.h>
-#include "platform/linux/XTimeUtils.h"
-#include "platform/linux/XMemUtils.h"
 
 extern "C" {
 #include <libavutil/avutil.h>
@@ -225,12 +227,19 @@ void CVAAPIContext::DestroyContext()
 {
   delete[] m_profiles;
   if (m_display)
-    CheckSuccess(vaTerminate(m_display), "vaTerminate");
-
+  {
+    if (CheckSuccess(vaTerminate(m_display), "vaTerminate"))
+    {
+      m_display = NULL;
+    }
+    else
+    {
 #if VA_CHECK_VERSION(1, 0, 0)
-  vaSetErrorCallback(m_display, nullptr, nullptr);
-  vaSetInfoCallback(m_display, nullptr, nullptr);
+      vaSetErrorCallback(m_display, nullptr, nullptr);
+      vaSetInfoCallback(m_display, nullptr, nullptr);
 #endif
+    }
+  }
 }
 
 void CVAAPIContext::QueryCaps()
@@ -558,7 +567,6 @@ bool CDecoder::Open(AVCodecContext* avctx, AVCodecContext* mainctx, const enum A
   m_vaapiConfig.surfaceWidth = avctx->coded_width;
   m_vaapiConfig.surfaceHeight = avctx->coded_height;
   m_vaapiConfig.aspect = avctx->sample_aspect_ratio;
-  m_decoderThread = CThread::GetCurrentThreadId();
   m_DisplayState = VAAPI_OPEN;
   m_vaapiConfigured = false;
   m_presentPicture = nullptr;
@@ -998,7 +1006,7 @@ CDVDVideoCodec::VCReturn CDecoder::Check(AVCodecContext* avctx)
   {
     // if there is no other error, sleep for a short while
     // in order not to drain player's message queue
-    Sleep(10);
+    KODI::TIME::Sleep(10);
 
     return CDVDVideoCodec::VC_NOBUFFER;
   }
@@ -2817,7 +2825,7 @@ CFFmpegPostproc::CFFmpegPostproc()
 CFFmpegPostproc::~CFFmpegPostproc()
 {
   Close();
-  _aligned_free(m_cache);
+  KODI::MEMORY::AlignedFree(m_cache);
   m_dllSSE4.Unload();
   av_frame_free(&m_pFilterFrameIn);
   av_frame_free(&m_pFilterFrameOut);
@@ -2864,7 +2872,7 @@ bool CFFmpegPostproc::PreInit(CVaapiConfig &config, SDiMethods *methods)
 
   if (use_filter)
   {
-    m_cache = (uint8_t*)_aligned_malloc(CACHED_BUFFER_SIZE, 64);
+    m_cache = static_cast<uint8_t*>(KODI::MEMORY::AlignedMalloc(CACHED_BUFFER_SIZE, 64));
     if (methods)
     {
       methods->diMethods[methods->numDiMethods++] = VS_INTERLACEMETHOD_DEINTERLACE;

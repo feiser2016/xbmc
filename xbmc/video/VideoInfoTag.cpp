@@ -7,20 +7,21 @@
  */
 
 #include "VideoInfoTag.h"
-#include "utils/XMLUtils.h"
-#include "guilib/LocalizeStrings.h"
+
 #include "ServiceBroker.h"
+#include "TextureDatabase.h"
+#include "guilib/LocalizeStrings.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
-#include "utils/log.h"
+#include "utils/Archive.h"
 #include "utils/StringUtils.h"
 #include "utils/Variant.h"
-#include "utils/Archive.h"
-#include "TextureDatabase.h"
+#include "utils/XMLUtils.h"
+#include "utils/log.h"
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 void CVideoInfoTag::Reset()
@@ -469,8 +470,6 @@ void CVideoInfoTag::Archive(CArchive& ar)
     ar >> m_strAlbum;
     ar >> m_artist;
     ar >> m_playCount;
-    //re-evaluate the playcount
-    m_playCount = PLAYCOUNT_NOT_SET;
     ar >> m_lastPlayed;
     ar >> m_iTop250;
     ar >> m_iSeason;
@@ -835,7 +834,10 @@ void CVideoInfoTag::ParseNative(const TiXmlElement* movie, bool prioritise)
         r.rating = r.rating / max_value * 10; // Normalise the Movie Rating to between 1 and 10
       SetRating(r, name);
       bool isDefault = false;
-      if ((child->QueryBoolAttribute("default", &isDefault) == TIXML_SUCCESS) && isDefault)
+      // guard against assert in tinyxml
+      const char* rAtt = child->Attribute("default", static_cast<int*>(nullptr));
+      if (rAtt && strlen(rAtt) != 0 &&
+          (child->QueryBoolAttribute("default", &isDefault) == TIXML_SUCCESS) && isDefault)
         m_strDefaultRating = name;
     }
   }
@@ -1419,7 +1421,11 @@ void CVideoInfoTag::SetUniqueIDs(std::map<std::string, std::string> uniqueIDs)
       uniqueIDs.erase(uniqueid.first);
   }
   if (uniqueIDs.find(m_strDefaultUniqueID) == uniqueIDs.end())
-    uniqueIDs[m_strDefaultUniqueID] = GetUniqueID();
+  {
+    const auto defaultUniqueId = GetUniqueID();
+    if (!defaultUniqueId.empty())
+      uniqueIDs[m_strDefaultUniqueID] = defaultUniqueId;
+  }
   m_uniqueIDs = std::move(uniqueIDs);
 }
 
@@ -1503,10 +1509,11 @@ void CVideoInfoTag::SetShowLink(std::vector<std::string> showLink)
 
 void CVideoInfoTag::SetUniqueID(const std::string& uniqueid, const std::string& type /* = "" */, bool isDefaultID /* = false */)
 {
+  if (uniqueid.empty())
+    return;
+
   if (type.empty())
-  {
     m_uniqueIDs[m_strDefaultUniqueID] = uniqueid;
-  }
   else
   {
     m_uniqueIDs[type] = uniqueid;
@@ -1545,7 +1552,7 @@ std::vector<std::string> CVideoInfoTag::Trim(std::vector<std::string>&& items)
   std::for_each(items.begin(), items.end(), [](std::string &str){
     str = StringUtils::Trim(str);
   });
-  return items;
+  return std::move(items);
 }
 
 int CVideoInfoTag::GetPlayCount() const

@@ -7,20 +7,21 @@
  */
 
 #include "GUIEditControl.h"
+
+#include "GUIKeyboardFactory.h"
+#include "GUIUserMessages.h"
 #include "GUIWindowManager.h"
+#include "LocalizeStrings.h"
 #include "ServiceBroker.h"
+#include "XBDateTime.h"
+#include "dialogs/GUIDialogNumeric.h"
+#include "input/Key.h"
+#include "input/XBMC_vkeys.h"
 #include "utils/CharsetConverter.h"
 #include "utils/Color.h"
 #include "utils/Digest.h"
 #include "utils/Variant.h"
-#include "GUIKeyboardFactory.h"
-#include "dialogs/GUIDialogNumeric.h"
-#include "input/XBMC_vkeys.h"
-#include "input/Key.h"
-#include "LocalizeStrings.h"
-#include "XBDateTime.h"
 #include "windowing/WinSystem.h"
-#include "GUIUserMessages.h"
 
 using namespace KODI::GUILIB;
 
@@ -295,7 +296,7 @@ void CGUIEditControl::OnClick()
     {
       CDateTime dateTime;
       dateTime.SetFromDBTime(utf8);
-      SYSTEMTIME time;
+      KODI::TIME::SystemTime time;
       dateTime.GetAsSystemTime(time);
       if (CGUIDialogNumeric::ShowAndGetTime(time, !m_inputHeading.empty() ? m_inputHeading : g_localizeStrings.Get(21420)))
       {
@@ -311,7 +312,7 @@ void CGUIEditControl::OnClick()
       dateTime.SetFromDBDate(utf8);
       if (dateTime < CDateTime(2000,1, 1, 0, 0, 0))
         dateTime = CDateTime(2000, 1, 1, 0, 0, 0);
-      SYSTEMTIME date;
+      KODI::TIME::SystemTime date;
       dateTime.GetAsSystemTime(date);
       if (CGUIDialogNumeric::ShowAndGetDate(date, !m_inputHeading.empty() ? m_inputHeading : g_localizeStrings.Get(21420)))
       {

@@ -17,22 +17,24 @@
 #include <pthread.h>
 #endif
 
+#include "ServiceBroker.h"
+#include "Util.h"
+#include "XBDateTime.h"
 #include "filesystem/File.h"
 #include "network/httprequesthandler/HTTPRequestHandlerUtils.h"
 #include "network/httprequesthandler/IHTTPRequestHandler.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "ServiceBroker.h"
 #include "threads/SingleLock.h"
-#include "Util.h"
 #include "utils/FileUtils.h"
-#include "utils/log.h"
 #include "utils/Mime.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-#include "XBDateTime.h"
+#include "utils/log.h"
+
+#include <inttypes.h>
 
 #define MAX_POST_BUFFER_SIZE 2048
 
@@ -410,8 +412,8 @@ int CWebServer::FinalizeRequest(const std::shared_ptr<IHTTPRequestHandler>& hand
     handler->AddResponseHeader(MHD_HTTP_HEADER_CONTENT_LENGTH, StringUtils::Format("%" PRIu64, responseDetails.totalLength));
 
   // add all headers set by the request handler
-  for (std::multimap<std::string, std::string>::const_iterator it = responseDetails.headers.begin(); it != responseDetails.headers.end(); ++it)
-    AddHeader(response, it->first, it->second);
+  for (const auto& it : responseDetails.headers)
+    AddHeader(response, it.first, it.second);
 
   return SendResponse(request, responseStatus, response);
 }
@@ -636,17 +638,17 @@ int CWebServer::CreateRangedMemoryDownloadResponse(const std::shared_ptr<IHTTPRe
   // extract all the valid ranges and calculate their total length
   uint64_t firstRangePosition = 0;
   HttpResponseRanges ranges;
-  for (HttpResponseRanges::const_iterator range = responseRanges.begin(); range != responseRanges.end(); ++range)
+  for (const auto& range : responseRanges)
   {
     // ignore invalid ranges
-    if (!range->IsValid())
+    if (!range.IsValid())
       continue;
 
     // determine the first range position
     if (ranges.empty())
-      firstRangePosition = range->GetFirstPosition();
+      firstRangePosition = range.GetFirstPosition();
 
-    ranges.push_back(*range);
+    ranges.push_back(range);
   }
 
   if (ranges.empty())
@@ -1303,5 +1305,11 @@ int CWebServer::AddHeader(struct MHD_Response *response, const std::string &name
 
   CLog::Log(LOGDEBUG, LOGWEBSERVER, "CWebServer[%hu] [OUT] %s: %s", m_port, name.c_str(), value.c_str());
 
+#if MHD_VERSION >= 0x00096800
+  if (name == MHD_HTTP_HEADER_CONTENT_LENGTH)
+  {
+    MHD_set_response_options(response, MHD_RF_INSANITY_HEADER_CONTENT_LENGTH, MHD_RO_END);
+  }
+#endif
   return MHD_add_response_header(response, name.c_str(), value.c_str());
 }

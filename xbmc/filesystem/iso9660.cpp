@@ -27,22 +27,27 @@ ISO9660
 
 
 */
+
 #include "iso9660.h"
-#include "storage/IoSupport.h"
-#include "utils/CharsetConverter.h"
-#include "threads/SingleLock.h"
+
 #include "IFile.h"
+#include "storage/IoSupport.h"
+#include "threads/SingleLock.h"
+#include "utils/CharsetConverter.h"
+#include "utils/XTimeUtils.h"
 #include "utils/log.h"
 
 #ifndef TARGET_WINDOWS
 #include "storage/DetectDVDType.h"  // for MODE2_DATA_SIZE etc.
-#include "platform/linux/XFileUtils.h"
-#include "platform/linux/XTimeUtils.h"
+#include "platform/posix/XFileUtils.h"
 #else
 #include "platform/win32/CharsetConverter.h"
 #endif
-#include <stdlib.h>
+
 #include <algorithm>
+#include <cstring>
+#include <stdlib.h>
+
 #include <cdio/bytesex.h>
 //#define _DEBUG_OUTPUT 1
 
@@ -238,7 +243,7 @@ struct iso_dirtree *iso9660::ReadRecursiveDirFromSector( DWORD sector, const cha
 
   strcpy( m_lastpath->path, path );
 
-  while ( 1 )
+  while ( true )
   {
     if ( isodir.ucRecordLength )
       iso9660searchpointer += isodir.ucRecordLength;
@@ -325,7 +330,7 @@ struct iso_dirtree *iso9660::ReadRecursiveDirFromSector( DWORD sector, const cha
   iso9660searchpointer = 0;
   memcpy( &curr_dir, pCurr_dir_cache, sizeof(isodir) );
   memcpy( &isodir, pCurr_dir_cache, sizeof(isodir) );
-  while ( 1 )
+  while ( true )
   {
     if ( isodir.ucRecordLength )
       iso9660searchpointer += isodir.ucRecordLength;
@@ -618,10 +623,12 @@ struct iso_dirtree *iso9660::FindFolder(const char *Folder )
 }
 
 //******************************************************************************************************************
-HANDLE iso9660::FindFirstFile9660(const char *szLocalFolder, WIN32_FIND_DATA *wfdFile)
+HANDLE iso9660::FindFirstFile9660(const char* szLocalFolder, Win32FindData* wfdFile)
 {
-  if (m_info.ISO_HANDLE == nullptr) return static_cast<HANDLE>(nullptr);
-  memset( wfdFile, 0, sizeof(WIN32_FIND_DATA));
+  if (!m_info.ISO_HANDLE)
+    return static_cast<HANDLE>(nullptr);
+
+  memset(wfdFile, 0, sizeof(Win32FindData));
 
   m_searchpointer = FindFolder( szLocalFolder );
 
@@ -631,21 +638,17 @@ HANDLE iso9660::FindFirstFile9660(const char *szLocalFolder, WIN32_FIND_DATA *wf
 
     if ( m_searchpointer )
     {
-#ifdef TARGET_WINDOWS
-      wcscpy_s(wfdFile->cFileName, MAX_PATH, KODI::PLATFORM::WINDOWS::ToW(m_searchpointer->name).c_str());
-#else
-      strncpy(wfdFile->cFileName, m_searchpointer->name, sizeof(wfdFile->cFileName) - 1);
-      wfdFile->cFileName[sizeof(wfdFile->cFileName) - 1] = '\0';
-#endif
+      std::strncpy(wfdFile->fileName, m_searchpointer->name, sizeof(wfdFile->fileName) - 1);
+      wfdFile->fileName[sizeof(wfdFile->fileName) - 1] = '\0';
 
       if ( m_searchpointer->type == 2 )
-        wfdFile->dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;
+        wfdFile->fileAttributes |= KODI_FILE_ATTRIBUTE_DIRECTORY;
 
-      wfdFile->ftLastWriteTime = m_searchpointer->filetime;
-      wfdFile->ftLastAccessTime = m_searchpointer->filetime;
-      wfdFile->ftCreationTime = m_searchpointer->filetime;
+      wfdFile->lastWriteTime = m_searchpointer->filetime;
+      wfdFile->lastAccessTime = m_searchpointer->filetime;
+      wfdFile->creationTime = m_searchpointer->filetime;
 
-      wfdFile->nFileSizeLow = m_searchpointer->Length;
+      wfdFile->fileSizeLow = m_searchpointer->Length;
       return reinterpret_cast<HANDLE>(1);
     }
   }
@@ -653,30 +656,26 @@ HANDLE iso9660::FindFirstFile9660(const char *szLocalFolder, WIN32_FIND_DATA *wf
 }
 
 //******************************************************************************************************************
-int iso9660::FindNextFile( HANDLE szLocalFolder, WIN32_FIND_DATA *wfdFile )
+int iso9660::FindNextFile(HANDLE szLocalFolder, Win32FindData* wfdFile)
 {
-  memset( wfdFile, 0, sizeof(WIN32_FIND_DATA));
+  memset(wfdFile, 0, sizeof(Win32FindData));
 
   if ( m_searchpointer )
     m_searchpointer = m_searchpointer->next;
 
   if ( m_searchpointer )
   {
-#ifdef TARGET_WINDOWS
-    wcscpy_s(wfdFile->cFileName, MAX_PATH, KODI::PLATFORM::WINDOWS::ToW(m_searchpointer->name).c_str());
-#else
-    strncpy(wfdFile->cFileName, m_searchpointer->name, sizeof(wfdFile->cFileName) - 1);
-    wfdFile->cFileName[sizeof(wfdFile->cFileName) - 1] = '\0';
-#endif
+    std::strncpy(wfdFile->fileName, m_searchpointer->name, sizeof(wfdFile->fileName) - 1);
+    wfdFile->fileName[sizeof(wfdFile->fileName) - 1] = '\0';
 
     if ( m_searchpointer->type == 2 )
-      wfdFile->dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;
+      wfdFile->fileAttributes |= KODI_FILE_ATTRIBUTE_DIRECTORY;
 
-    wfdFile->ftLastWriteTime = m_searchpointer->filetime;
-    wfdFile->ftLastAccessTime = m_searchpointer->filetime;
-    wfdFile->ftCreationTime = m_searchpointer->filetime;
+    wfdFile->lastWriteTime = m_searchpointer->filetime;
+    wfdFile->lastAccessTime = m_searchpointer->filetime;
+    wfdFile->creationTime = m_searchpointer->filetime;
 
-    wfdFile->nFileSizeLow = m_searchpointer->Length;
+    wfdFile->fileSizeLow = m_searchpointer->Length;
     return 1;
   }
 
@@ -717,7 +716,7 @@ HANDLE iso9660::OpenFile(const char *filename)
   if (!pContext)
     return INVALID_HANDLE_VALUE;
 
-  WIN32_FIND_DATA fileinfo;
+  Win32FindData fileinfo;
   char *pointer, *pointer2;
   char work[512];
   pContext->m_bUseMode2 = false;
@@ -738,16 +737,9 @@ HANDLE iso9660::OpenFile(const char *filename)
 
   intptr_t loop = (intptr_t)FindFirstFile9660( work, &fileinfo );
 
-#ifdef TARGET_WINDOWS
-  auto wpointer = KODI::PLATFORM::WINDOWS::ToW(pointer);
-#endif
   while ( loop > 0)
   {
-#ifdef TARGET_WINDOWS
-    if (!_wcsicmp(fileinfo.cFileName, wpointer.c_str()))
-#else
-    if ( !stricmp(fileinfo.cFileName, pointer ) )
-#endif
+    if (!std::strcmp(fileinfo.fileName, pointer))
       loop = -1;
     else
       loop = FindNextFile( NULL, &fileinfo );
@@ -759,7 +751,7 @@ HANDLE iso9660::OpenFile(const char *filename)
   }
 
   pContext->m_dwCurrentBlock = m_searchpointer->Location;
-  pContext->m_dwFileSize = m_info.curr_filesize = fileinfo.nFileSizeLow;
+  pContext->m_dwFileSize = m_info.curr_filesize = fileinfo.fileSizeLow;
   pContext->m_pBuffer = new uint8_t[CIRC_BUFFER_SIZE * BUFFER_SIZE];
   pContext->m_dwStartBlock = pContext->m_dwCurrentBlock;
   pContext->m_dwFilePos = 0;
@@ -1044,7 +1036,7 @@ bool iso9660::IsScanned()
 }
 
 //************************************************************************************
-void iso9660::IsoDateTimeToFileTime(iso9660_Datetime* isoDateTime, FILETIME* filetime)
+void iso9660::IsoDateTimeToFileTime(iso9660_Datetime* isoDateTime, KODI::TIME::FileTime* filetime)
 {
   tm t = { 0 };
   t.tm_year=isoDateTime->year;
@@ -1056,14 +1048,14 @@ void iso9660::IsoDateTimeToFileTime(iso9660_Datetime* isoDateTime, FILETIME* fil
   t.tm_isdst=-1;
   mktime(&t);
 
-  SYSTEMTIME time;
-  time.wYear=t.tm_year+1900;
-  time.wMonth=t.tm_mon+1;
-  time.wDayOfWeek=t.tm_wday;
-  time.wDay=t.tm_mday;
-  time.wHour=t.tm_hour;
-  time.wMinute=t.tm_min;
-  time.wSecond=t.tm_sec;
-  time.wMilliseconds=0;
-  SystemTimeToFileTime(&time, filetime);
+  KODI::TIME::SystemTime time;
+  time.year = t.tm_year + 1900;
+  time.month = t.tm_mon + 1;
+  time.dayOfWeek = t.tm_wday;
+  time.day = t.tm_mday;
+  time.hour = t.tm_hour;
+  time.minute = t.tm_min;
+  time.second = t.tm_sec;
+  time.milliseconds = 0;
+  KODI::TIME::SystemTimeToFileTime(&time, filetime);
 }

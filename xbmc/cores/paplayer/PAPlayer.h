@@ -8,18 +8,17 @@
 
 #pragma once
 
+#include "AudioDecoder.h"
+#include "FileItem.h"
+#include "cores/AudioEngine/Interfaces/IAudioCallback.h"
+#include "cores/IPlayer.h"
+#include "threads/CriticalSection.h"
+#include "threads/Thread.h"
+#include "utils/Job.h"
+
 #include <atomic>
 #include <list>
 #include <vector>
-
-#include "FileItem.h"
-#include "cores/IPlayer.h"
-#include "threads/Thread.h"
-#include "AudioDecoder.h"
-#include "threads/CriticalSection.h"
-#include "utils/Job.h"
-
-#include "cores/AudioEngine/Interfaces/IAudioCallback.h"
 
 class IAEStream;
 class CFileItem;
@@ -117,6 +116,7 @@ private:
   bool                m_isPlaying;
   bool                m_isPaused;
   bool                m_isFinished;          /* if there are no more songs in the queue */
+  bool m_fullScreen;
   unsigned int        m_defaultCrossfadeMS;  /* how long the default crossfade is in ms */
   unsigned int        m_upcomingCrossfadeMS; /* how long the upcoming crossfade is in ms */
   CEvent              m_startEvent;          /* event for playback start */

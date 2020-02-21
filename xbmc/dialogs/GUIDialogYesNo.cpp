@@ -7,11 +7,12 @@
  */
 
 #include "GUIDialogYesNo.h"
+
+#include "ServiceBroker.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "input/Key.h"
 #include "messaging/helpers/DialogHelper.h"
-#include "ServiceBroker.h"
 
 CGUIDialogYesNo::CGUIDialogYesNo(int overrideId /* = -1 */)
     : CGUIDialogBoxBase(overrideId == -1 ? WINDOW_DIALOG_YES_NO : overrideId, "DialogConfirm.xml")
@@ -29,7 +30,7 @@ bool CGUIDialogYesNo::OnMessage(CGUIMessage& message)
     {
       int iControl = message.GetSenderId();
       int iAction = message.GetParam1();
-      if (1 || ACTION_SELECT_ITEM == iAction)
+      if (true || ACTION_SELECT_ITEM == iAction)
       {
         if (iControl == CONTROL_NO_BUTTON)
         {

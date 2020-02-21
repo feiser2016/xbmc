@@ -7,24 +7,25 @@
  */
 
 #include "GUIWindowGames.h"
-#include "addons/GUIDialogAddonInfo.h"
+
 #include "Application.h"
+#include "FileItem.h"
+#include "GUIPassword.h"
+#include "PlayListPlayer.h"
+#include "ServiceBroker.h"
+#include "URL.h"
+#include "Util.h"
+#include "addons/GUIDialogAddonInfo.h"
 #include "dialogs/GUIDialogContextMenu.h"
 #include "dialogs/GUIDialogMediaSource.h"
 #include "dialogs/GUIDialogProgress.h"
-#include "FileItem.h"
 #include "games/addons/GameClient.h"
 #include "guilib/GUIComponent.h"
 #include "guilib/GUIWindowManager.h"
 #include "guilib/WindowIDs.h"
-#include "GUIPassword.h"
-#include "PlayListPlayer.h"
-#include "ServiceBroker.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
-#include "URL.h"
-#include "Util.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
@@ -263,6 +264,13 @@ bool CGUIWindowGames::GetDirectory(const std::string &strDirectory, CFileItemLis
 
   if (!content.empty())
     items.SetContent(content);
+
+  // Ensure a game info tag is created so that files are recognized as games
+  for (const CFileItemPtr& item : items)
+  {
+    if (!item->m_bIsFolder)
+      item->GetGameInfoTag();
+  }
 
   return true;
 }
